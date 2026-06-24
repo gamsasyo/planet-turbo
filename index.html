@@ -19,7 +19,7 @@
     min-height:100%; padding:24px; text-align:center;
   }
 
-  #mascot{ width:190px; height:190px; image-rendering:pixelated; margin-bottom:18px;
+  #mascot{ width:216px; height:216px; image-rendering:pixelated; margin-bottom:14px;
     animation:bob 1.1s steps(2) infinite; }
   @keyframes bob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-8px);} }
 
@@ -56,7 +56,7 @@
 </head>
 <body>
 
-  <canvas id="mascot" width="64" height="64"></canvas>
+  <canvas id="mascot" width="76" height="76"></canvas>
 
   <h1>PLANET<br>TURBO</h1>
   <div class="sub">SELECT GAME</div>
@@ -79,23 +79,26 @@
 
 <script>
 // 마스코트 = 웃는 지구본 + 흰 장갑 주먹 + 주황 불꽃 후광 (SVG) → 저해상도 래스터화 → 픽셀화
-// 불꽃 후광 (별모양 코로나) 좌표 계산
-function flameStar(cx, cy, n, rOut, rIn){
+// 불꽃 후광 (불규칙 스파이크 코로나) 좌표 계산 — outs 배열로 스파이크 길이 들쭉날쭉(불꽃 일렁임)
+function flame(cx, cy, n, rIn, outs){
   let p=[];
   for(let k=0;k<n*2;k++){
     const a=(k/(n*2))*Math.PI*2 - Math.PI/2;
-    const r=(k%2===0)? rOut : rIn;
+    const r=(k%2===0)? outs[(k/2)%outs.length] : rIn;
     p.push((cx+Math.cos(a)*r).toFixed(1)+','+(cy+Math.sin(a)*r).toFixed(1));
   }
   return 'M'+p.join(' L')+' Z';
 }
-const FLAME_O = flameStar(50,48,11,49,40);   // 바깥 주황
-const FLAME_Y = flameStar(50,48,11,44,39);   // 안쪽 노랑
-const MASCOT_SVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+const CFX=50, CFY=48;
+const FLAME_O = flame(CFX,CFY,14,44,[64,55,61,53,60,57]);   // 바깥 주황 (긴 불꽃)
+const FLAME_Y = flame(CFX,CFY,14,43,[55,48,53,47,52,49]);   // 중간 노랑
+const FLAME_W = flame(CFX,CFY,14,42,[47,43,46,43,45,44]);   // 안쪽 밝은 노랑 (글로우)
+const MASCOT_SVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='-16 -18 132 132'>
   <defs><clipPath id='g'><circle cx='50' cy='48' r='34'/></clipPath></defs>
-  <!-- 주황 불꽃 후광 (머리 뒤) -->
-  <path d='${FLAME_O}' fill='#ff7a1a'/>
-  <path d='${FLAME_Y}' fill='#ffd23c'/>
+  <!-- 불꽃 후광 3겹 (머리 뒤) -->
+  <path d='${FLAME_O}' fill='#ff5a1a'/>
+  <path d='${FLAME_Y}' fill='#ffae22'/>
+  <path d='${FLAME_W}' fill='#ffe24a'/>
   <!-- 팔 (검정 누들) + 흰 장갑 주먹 -->
   <path d='M64 58 Q76 50 84 44' stroke='#0a0a0a' stroke-width='6' fill='none' stroke-linecap='round'/>
   <path d='M36 62 Q24 70 16 78' stroke='#0a0a0a' stroke-width='6' fill='none' stroke-linecap='round'/>
