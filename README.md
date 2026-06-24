@@ -7,7 +7,7 @@ A mini-game hub starring the Planet Turbo globe mascot.
 ```
 gamsasyo.github.io/planet-turbo/          ← landing (game select)
                   /planet-turbo/flight/   ← ✈️ FLIGHT (audio-reactive flight game)
-                  /planet-turbo/skate/    ← 🛹 SKATE (coming soon)
+                  /planet-turbo/skate/    ← 🛹 SKATE (street session — southbank)
 ```
 
 ## ✈️ FLIGHT
@@ -20,7 +20,11 @@ Soar over the ocean and thread the golden rings. Audio-reactive flight game in a
 Fly the cute 1-seat plane piloted by the Planet Turbo globe mascot, thread the golden rings (the character does a random trick — backflip / selfie / dance — and changes facial expression on each pass), and fill the boost gauge.
 
 ## 🛹 SKATE
-Coming soon — almost ready.
+**STREET SESSION — SOUTHBANK.** Night-city street skater starring the globe mascot. Single self-contained HTML file.
+- **WASD** — move
+- **SPACE** — ollie
+- **AIR: WASD** — tricks
+- **E** — autopilot
 
 ---
 Source: each game lives at `<game>/index.html`. FLIGHT is copied from `illegal_beatz/flight.html`.
