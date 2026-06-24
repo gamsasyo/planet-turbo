@@ -23,4 +23,4 @@ Fly the cute 1-seat plane piloted by the Planet Turbo globe mascot, thread the g
 Coming soon — almost ready.
 
 ---
-Source: each game lives at `<game>/index.html`. FLIGHT is copied from `illegal_beatz/flight.html`. Made by f33dbag.
+Source: each game lives at `<game>/index.html`. FLIGHT is copied from `illegal_beatz/flight.html`.
