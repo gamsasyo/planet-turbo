@@ -8,7 +8,7 @@
   *{ margin:0; padding:0; box-sizing:border-box; }
   html,body{ height:100%; }
   body{
-    font-family: "Trebuchet MS", system-ui, sans-serif;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;   /* 우리 폰트 (게임 본문과 동일) */
     background: linear-gradient(#bfe6ff 0%, #8fd0f0 38%, #5fb4e6 55%, #3f93d8 70%, #2f73c0 100%);
     color:#fff; overflow:hidden;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -22,6 +22,7 @@
   @keyframes bob{ 0%,100%{ transform:translateY(0) rotate(-2deg);} 50%{ transform:translateY(-12px) rotate(2deg);} }
 
   h1{
+    font-family:'Courier New',monospace; font-style:italic;     /* 타이틀 = 콤보/TURBO 라벨과 동일 */
     font-size:clamp(38px,9vw,76px); font-weight:900; letter-spacing:3px; line-height:.95;
     color:#fff; text-shadow:0 4px 0 #e23c3c, 0 8px 0 rgba(0,0,0,.18);
     -webkit-text-stroke:2px #1a2a4a; margin-bottom:4px;
@@ -40,7 +41,7 @@
   .card.live:hover{ transform:translateY(-6px); box-shadow:0 14px 0 rgba(0,0,0,.18); background:rgba(255,255,255,.26); }
   .card.live:active{ transform:translateY(2px); box-shadow:0 4px 0 rgba(0,0,0,.18); }
   .card .ico{ font-size:60px; line-height:1; filter:drop-shadow(0 4px 0 rgba(0,0,0,.15)); }
-  .card .name{ font-size:24px; font-weight:900; letter-spacing:1px; -webkit-text-stroke:1.5px #1a2a4a; }
+  .card .name{ font-family:'Courier New',monospace; font-style:italic; font-size:24px; font-weight:900; letter-spacing:1px; -webkit-text-stroke:1.5px #1a2a4a; }
   .card .desc{ font-size:12px; opacity:.9; min-height:32px; }
   .card .go{ margin-top:4px; font-size:13px; font-weight:800; letter-spacing:1px;
     background:#e23c3c; color:#fff; padding:7px 18px; border-radius:999px; box-shadow:0 3px 0 #9e2020; }
