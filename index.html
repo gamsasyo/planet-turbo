@@ -68,13 +68,12 @@
       <div class="tag">RING FLYER<br>AUDIO REACTIVE</div>
       <div class="go">&#9654; PLAY</div>
     </a>
-    <div class="card soon">
-      <span class="badge">SOON</span>
-      <div class="ico" style="font-size:48px;line-height:64px;">🛹</div>
+    <a class="card live" href="skate/">
+      <canvas class="ico" id="ico-skate" width="40" height="40"></canvas>
       <div class="name">SKATE</div>
-      <div class="tag">ALMOST<br>READY</div>
-      <div class="go">LOCKED</div>
-    </div>
+      <div class="tag">STREET SESSION<br>SOUTHBANK</div>
+      <div class="go">&#9654; PLAY</div>
+    </a>
   </div>
 
 <script>
@@ -145,6 +144,14 @@ const PLANE_SVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'>
   <rect x='17' y='4' width='6' height='3' fill='#33333a'/>
 </svg>`;
 
+// 스케이트보드 픽셀 아이콘 (오목 데크 + 노란 바퀴)
+const SKATE_SVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'>
+  <path d='M5 22 Q4 18 9 20 L31 20 Q36 18 35 22 Q36 25 31 24 L9 24 Q4 25 5 22 Z' fill='#d8425e' stroke='#0a0a0a' stroke-width='2' stroke-linejoin='round'/>
+  <rect x='10' y='24' width='3' height='3' fill='#888'/><rect x='27' y='24' width='3' height='3' fill='#888'/>
+  <circle cx='11.5' cy='29' r='3' fill='#ffd23c' stroke='#0a0a0a' stroke-width='2'/>
+  <circle cx='28.5' cy='29' r='3' fill='#ffd23c' stroke='#0a0a0a' stroke-width='2'/>
+</svg>`;
+
 function pixelDraw(canvas, svg){
   const img = new Image();
   img.onload = () => { const x = canvas.getContext('2d'); x.imageSmoothingEnabled = false;
@@ -153,6 +160,7 @@ function pixelDraw(canvas, svg){
 }
 pixelDraw(document.getElementById('mascot'), MASCOT_SVG);
 pixelDraw(document.getElementById('ico-fly'), PLANE_SVG);
+pixelDraw(document.getElementById('ico-skate'), SKATE_SVG);
 </script>
 </body>
 </html>

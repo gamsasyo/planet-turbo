@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>STREET SESSION — SOUTHBANK</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #11131c;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; color: #e8f0ff; }
+  canvas { display: block; width: 100% !important; height: 100% !important;
+    image-rendering: pixelated; image-rendering: crisp-edges; }
+
+  /* HUD */
+  #hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; user-select: none; }
+  #score { position: absolute; top: 12px; right: 18px; text-align: right;
+    font-family: 'Courier New', monospace; font-weight: 900; font-style: italic; }
+  #score .big { font-size: 46px; line-height: .9; color: #fff;
+    text-shadow: 3px 3px 0 #000, 0 0 18px rgba(255,200,40,.7); }
+  #score .hi { font-size: 15px; letter-spacing: 2px; color: #ffe24a; margin-top: 3px;
+    text-shadow: 2px 2px 0 #000; }
+  #speed { position: absolute; bottom: 14px; left: 18px; font-size: 22px; color: #ffd27f;
+    font-family: 'Courier New', monospace; font-weight: 900; font-style: italic;
+    text-shadow: 2px 2px 0 #000, 0 0 8px rgba(255,180,80,.5); }
+  #ctrls { position: absolute; bottom: 14px; right: 18px; font-size: 11px; color: #8aa;
+    text-align: right; line-height: 1.6; }
+  #ap { position: absolute; top: 14px; left: 18px; font-size: 14px; font-weight: 700;
+    color: #6affb0; letter-spacing: 2px; text-shadow: 0 0 12px rgba(80,255,160,.8);
+    opacity: 0; transition: opacity .2s; }
+  #ap.on { opacity: 1; animation: blink 1.3s infinite; }
+
+  /* combo — PLANET TURBO 스타일 (Courier 굵은 이탤릭 + 통통 팝) */
+  #combo { position: absolute; top: 28%; left: 50%; transform: translate(-50%,0);
+    text-align: center; opacity: 0; pointer-events: none;
+    font-family: 'Courier New', monospace; font-weight: 900; font-style: italic; }
+  #combo.show { opacity: 1; animation: combopop .26s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes combopop { 0%{ transform: translate(-50%,0) scale(1.8) rotate(-5deg); }
+    60%{ transform: translate(-50%,0) scale(.92) rotate(2deg); }
+    100%{ transform: translate(-50%,0) scale(1) rotate(0); } }
+  #combomult { font-size: 64px; line-height: .9; color: #fff;
+    text-shadow: 3px 3px 0 #000, 0 0 18px rgba(255,200,40,.8); }
+  #combolist { font-size: 22px; letter-spacing: 4px; color: #ffe24a; margin-top: 4px;
+    text-shadow: 2px 2px 0 #000; }
+  #combopts { font-size: 18px; letter-spacing: 2px; color: #7df0ff; margin-top: 2px;
+    text-shadow: 2px 2px 0 #000; }
+  #banner { position: absolute; top: 50%; left: 50%; transform: translate(-50%,60px);
+    font-family: 'Courier New', monospace; font-weight: 900; font-style: italic;
+    font-size: 34px; opacity: 0; letter-spacing: 3px; }
+  #banner.bank { color: #6affb0; text-shadow: 3px 3px 0 #000, 0 0 18px rgba(80,255,160,.9); }
+  #banner.bail { color: #ff5a6a; text-shadow: 3px 3px 0 #000, 0 0 18px rgba(255,80,100,.9); }
+
+  /* overlays */
+  #load { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center;
+    justify-content: center; background: #11131c; color: #7fd0ff; font-size: 15px;
+    letter-spacing: 2px; }
+  #start { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; background: rgba(10,12,20,.82);
+    backdrop-filter: blur(3px); text-align: center; cursor: pointer; }
+  #start h1 { font-size: 46px; font-weight: 800; letter-spacing: 6px; color: #fff;
+    text-shadow: 0 0 24px rgba(120,200,255,.7); }
+  #start .sub { color: #7fd0ff; margin-top: 6px; letter-spacing: 3px; font-size: 13px; }
+  #start .keys { margin-top: 30px; font-size: 13px; color: #cdd; line-height: 1.9; }
+  #start .keys b { color: #ffd27f; }
+  #start .go { margin-top: 28px; font-size: 16px; color: #6affb0; animation: blink 1.1s infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div id="score"><div class="big">0</div><div class="hi">HI 0</div></div>
+  <div id="speed">SPD 0</div>
+  <div id="ctrls">WASD MOVE · SPACE OLLIE<br>AIR: WASD = TRICKS · E: AUTOPILOT</div>
+  <div id="ap">🛹 AUTOPILOT — press E to exit</div>
+  <div id="combo"><div id="combolist"></div><div id="combomult"></div><div id="combopts"></div></div>
+  <div id="banner"></div>
+</div>
+<div id="load">LOADING SOUTHBANK…</div>
+<div id="start" class="hidden">
+  <h1>STREET SESSION</h1>
+  <div class="sub">LONDON · SOUTHBANK UNDERCROFT</div>
+  <div class="keys">
+    <b>W</b> accel &nbsp; <b>S</b> brake &nbsp; <b>A/D</b> steer<br>
+    <b>SPACE</b> ollie (jump)<br>
+    in air: <b>A/D</b> spin/flip &nbsp; <b>W/S</b> grab<br>
+    land on rails to <b>GRIND</b> · chain tricks for combos
+  </div>
+  <div class="go">▶ CLICK TO SKATE</div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ───────────────────────── renderer / scene (PS1 low-res look) ─────────────────────────
+const PIXEL = 0.5;                                  // 내부 해상도 배율 → 픽셀 뭉개짐
+const renderer = new THREE.WebGLRenderer({ antialias: false });
+renderer.setPixelRatio(1);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const FOG = 0x121a2e;                                 // 야간 도시 (네이비)
+scene.background = new THREE.Color(FOG);
+scene.fog = new THREE.Fog(FOG, 50, 460);
+
+const camera = new THREE.PerspectiveCamera(74, innerWidth / innerHeight, 0.5, 2000);
+
+function resize() {
+  renderer.setSize(Math.floor(innerWidth * PIXEL), Math.floor(innerHeight * PIXEL), false);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+// lights — flat retro fill
+scene.add(new THREE.AmbientLight(0x46506e, 0.9));
+scene.add(new THREE.HemisphereLight(0x6878a8, 0x20243a, 0.5));
+const sun = new THREE.DirectionalLight(0x9fb4e0, 0.6); sun.position.set(40, 80, 30); scene.add(sun);   // 달빛
+
+// ───────────────────────── ground (비탈, 스케이터 따라 이동) ─────────────────────────
+const SLOPE0 = 0.06, SLOPE0_ANG = Math.atan(SLOPE0);   // groundHeightAt의 SLOPE와 동일
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400),
+  new THREE.MeshStandardMaterial({ color: 0x26282f, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2 + SLOPE0_ANG; scene.add(ground);      // +z로 갈수록 낮아지게 기울임
+// 도로 (가운데 밝은 띠)
+const road = new THREE.Mesh(new THREE.PlaneGeometry(34, 2400),
+  new THREE.MeshStandardMaterial({ color: 0x303138, roughness: 1 }));
+road.rotation.x = -Math.PI / 2 + SLOPE0_ANG; scene.add(road);
+
+// ───────────────────────── OSM city (real Southbank, low-poly — city-data.js) ─────────────────────────
+const BLD_COLORS = [0x2b3147, 0x33304a, 0x2a3340, 0x383044, 0x2c2f3e, 0x303a44];  // 야간 톤(어둡게)
+
+// 창문 불빛 셰이더 — 벽면에 켜진/꺼진 창문 격자 (밤 도시)
+function buildingMat(color) {
+  const m = new THREE.MeshStandardMaterial({ color, roughness: 1 });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = 'varying vec3 vWPos; varying vec3 vWN;\n' + sh.vertexShader
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n vWPos=(modelMatrix*vec4(transformed,1.0)).xyz;')
+      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n vWN=normalize(mat3(modelMatrix)*objectNormal);');
+    sh.fragmentShader = 'varying vec3 vWPos; varying vec3 vWN;\nfloat wn(float c){c=fract(c);return step(0.16,c)*step(c,0.84);}\n' + sh.fragmentShader
+      .replace('#include <dithering_fragment>',
+      `if(abs(vWN.y)<0.5){
+         float along = abs(vWN.x)>abs(vWN.z) ? vWPos.z : vWPos.x;
+         float win = wn(vWPos.y/3.2) * wn(along/3.6);
+         float sd = fract(sin(floor(vWPos.y/3.2)*9.1 + floor(along/3.6)*22.3 + floor((abs(vWN.x)>abs(vWN.z)?vWPos.x:vWPos.z)/40.0)*4.7)*43758.5);
+         vec3 wc = mix(vec3(1.0,0.82,0.5), vec3(0.55,0.9,1.0), step(0.86,sd));
+         gl_FragColor.rgb += win * step(0.42,sd) * wc * 1.1;
+       }
+       #include <dithering_fragment>`);
+  };
+  return m;
+}
+const bMats = BLD_COLORS.map(buildingMat);
+
+// ───────────────────────── skate spot props + grind rails ─────────────────────────
+const rails = [];      // {center:Vec3, dir:Vec3(xz unit), len, topY}
+const colliders = [];  // 건물 footprint 폴리곤 [[x,z],...]
+const ramps = [];      // {x,z,yaw,w,len,rise} — 경사면(올라타면 높이 ↑, 끝에서 발사)
+const concrete = new THREE.MeshStandardMaterial({ color: 0x9a9488, roughness: 1, flatShading: true });
+const metal    = new THREE.MeshStandardMaterial({ color: 0xb8c0cc, roughness: .6, metalness: .5, flatShading: true });
+
+function addRail(x, z, yaw, len, topY) {
+  const g = new THREE.BoxGeometry(len, 0.5, 0.5);
+  const m = new THREE.Mesh(g, metal);
+  m.position.set(x, topY, z); m.rotation.y = yaw; scene.add(m);
+  // posts
+  for (const t of [-len/2+1, len/2-1]) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.4, topY, 0.4), metal);
+    p.position.set(x + Math.cos(yaw) * t, topY/2, z - Math.sin(yaw) * t); scene.add(p);
+  }
+  rails.push({ center: new THREE.Vector3(x, 0, z),
+    dir: new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)), len, topY });
+}
+function addLedge(x, z, yaw, len, w, h) {             // 턱 = 그라인드 가능 박스
+  const m = new THREE.Mesh(new THREE.BoxGeometry(len, h, w), concrete);
+  m.position.set(x, h/2, z); m.rotation.y = yaw; scene.add(m);
+  rails.push({ center: new THREE.Vector3(x, 0, z),
+    dir: new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)), len, topY: h });
+  addBoxCollider(x, z, yaw, len, w, h);          // 턱도 막힘(위로 올라타면 통과)
+}
+function addBank(x, z, yaw, w, len, rise) {           // 경사면: -len/2 끝(낮음) → +len/2 끝(높음)
+  const ang = Math.atan2(rise, len);
+  const g = new THREE.BoxGeometry(w, 0.5, Math.hypot(len, rise));
+  const m = new THREE.Mesh(g, concrete);
+  m.position.set(x, rise/2, z);
+  m.rotation.y = yaw; m.rotation.x = -ang;            // +z(=+u) 끝이 위로
+  scene.add(m);
+  ramps.push({ x, z, yaw, w, len, rise });
+}
+
+// 무조건 내리막 — +z(전진)로 갈수록 도로면이 낮아짐
+const SLOPE = 0.06;
+const SLOPE_ANG = Math.atan(SLOPE);
+function roadBase(z) { return -z * SLOPE; }
+// 램프/킥커의 도로면 위 돌출 (≥0)
+function rampBump(x, z) {
+  let h = 0;
+  for (const r of ramps) {
+    const dx = x - r.x, dz = z - r.z;
+    const u = dx * Math.sin(r.yaw) + dz * Math.cos(r.yaw);
+    const v = dx * Math.cos(r.yaw) - dz * Math.sin(r.yaw);
+    if (Math.abs(v) <= r.w/2 && Math.abs(u) <= r.len/2) {
+      const hh = ((u + r.len/2) / r.len) * r.rise;
+      if (hh > h) h = hh;
+    }
+  }
+  return h;
+}
+// (x,z) 위의 실제 지형 높이 = 내리막 도로면 + 램프 돌출
+function groundHeightAt(x, z) { return roadBase(z) + rampBump(x, z); }
+
+// 건물 폴리곤 충돌 (point-in-polygon)
+function inPoly(x, z, poly) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], zi = poly[i][1], xj = poly[j][0], zj = poly[j][1];
+    if (((zi > z) !== (zj > z)) && (x < (xj - xi) * (z - zi) / (zj - zi) + xi)) c = !c;
+  }
+  return c;
+}
+// 높이 인식: 장애물 윗면보다 낮을 때만 막음(위에 올라타면 통과 가능)
+function blocked(x, z) {
+  for (const c of colliders) if (P.y < c.top - 0.2 && inPoly(x, z, c.poly)) return true;
+  return false;
+}
+// 0.4m 단위로 쪼개 터널링 방지. 합친 목표점을 먼저 검사(모서리 파고듦 방지),
+// 막히면 한 축씩 슬라이드 — 받아들이는 위치는 항상 콜라이더 밖
+function moveXZ(dx, dz) {
+  const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.4));
+  const sx = dx / steps, sz = dz / steps;
+  for (let i = 0; i < steps; i++) {
+    const nx = P.pos.x + sx, nz = P.pos.z + sz;
+    if (!blocked(nx, nz)) { P.pos.x = nx; P.pos.z = nz; }            // 자유 이동
+    else if (!blocked(nx, P.pos.z)) { P.pos.x = nx; P.vel *= 0.7; }  // x만 (벽 따라 슬라이드)
+    else if (!blocked(P.pos.x, nz)) { P.pos.z = nz; P.vel *= 0.7; }  // z만
+    else { P.vel *= 0.4; break; }                                    // 완전히 막힘
+  }
+}
+// 회전된 박스 footprint 콜라이더 등록 (윗면 높이 top)
+function addBoxCollider(x, z, yaw, len, w, top) {
+  const c = Math.cos(yaw), s = Math.sin(yaw), hl = len / 2, hw = w / 2;
+  const poly = [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) =>
+    [x + a * hl * c + b * hw * s, z - a * hl * s + b * hw * c]);
+  colliders.push({ poly, top });
+}
+
+// ───────────────────────── endless night-city street (전진하며 앞에 도시 생성) ─────────────────────────
+const ROAD_HALF = 15;            // 도로 반폭 (스케이터는 이 안)
+const AHEAD = 480;               // 앞쪽으로 채워두는 거리
+const SPAN = AHEAD + 90;         // 재활용 점프 거리
+const cityBlds = [], cityCars = [], features = [];
+const CARCOL = [0xff5240, 0x46b0ff, 0xffd23f, 0xffffff, 0xb06bff, 0x46ff9c];
+
+function spawnBuilding(z, side) {
+  const w = 12 + Math.random()*24, d = 14 + Math.random()*20, h = 18 + Math.random()*85;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bMats[(Math.random()*bMats.length)|0]);
+  m.userData = { side, h, w };
+  // 빌딩 안쪽 끝이 도로 밖(ROAD_HALF+4)에 오도록 폭 절반만큼 밀어냄 → 도로로 안 삐져나옴
+  m.position.set(side * (ROAD_HALF + 4 + w/2 + Math.random()*45), roadBase(z) + h/2, z);
+  scene.add(m); cityBlds.push(m);
+}
+const carWheelMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.9 });
+const LANES = [-13, -9, 9, 13];                  // 자동차 전용 차선 (가운데 레일/킥커와 안 겹침)
+function spawnCar(lane, z, dir, spd) {
+  const col = CARCOL[(Math.random()*CARCOL.length)|0];
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.45, metalness: 0.25 });
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.7, 4.3), bodyMat); chassis.position.y = 0.6; g.add(chassis);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.6, 2.1), bodyMat); cabin.position.set(0, 1.08, -0.15); g.add(cabin);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.46, 1.7),
+    new THREE.MeshStandardMaterial({ color: 0x0a1820, emissive: 0x2a7090, emissiveIntensity: 0.7, roughness: 0.3 }));
+  glass.position.set(0, 1.12, -0.15); g.add(glass);
+  for (const sx of [-0.62, 0.62]) {              // 헤드라이트 (앞 +z, 흰빛)
+    const hl = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.12),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff3c0, emissiveIntensity: 1.1 }));
+    hl.position.set(sx, 0.55, 2.18); g.add(hl);
+  }
+  for (const sx of [-0.62, 0.62]) {              // 테일라이트 (뒤 -z, 빨강)
+    const tl = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.1),
+      new THREE.MeshStandardMaterial({ color: 0xff2020, emissive: 0xff1414, emissiveIntensity: 1.0 }));
+    tl.position.set(sx, 0.58, -2.18); g.add(tl);
+  }
+  for (const sx of [-0.96, 0.96]) for (const sz of [-1.4, 1.4]) {   // 바퀴
+    const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.3, 10), carWheelMat);
+    wh.rotation.z = Math.PI/2; wh.position.set(sx, 0.32, sz); g.add(wh);
+  }
+  g.userData = { lane, spd, dir };
+  g.position.set(lane, roadBase(z), z);
+  g.rotation.set(SLOPE_ANG, dir>0?0:Math.PI, 0);   // 내리막 각도 + 진행 방향 바라봄
+  scene.add(g); cityCars.push(g);
+  const ref = { center: new THREE.Vector3(lane, 0, z), dir: new THREE.Vector3(0, 0, 1), len: 4.3, topY: 1.4 };
+  rails.push(ref); g.userData.rail = ref;
+}
+function addKicker(x, z, w, len, rise) {            // 점프대 (크기 다양)
+  const ang = Math.atan2(rise, len);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, Math.hypot(len, rise)), concrete);
+  m.rotation.x = -ang + SLOPE_ANG; m.position.set(x, roadBase(z) + rise/2, z); scene.add(m);
+  const ref = { x, z, yaw: 0, w, len, rise }; ramps.push(ref);
+  features.push({ mesh: m, kind: 'kicker', ref, x, z, rise });
+}
+function addRailF(x, z, len, topY) {                // 그라인드 레일 (길이·높이 다양)
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, len), metal);
+  m.rotation.x = SLOPE_ANG; m.position.set(x, roadBase(z) + topY, z); scene.add(m);
+  const ref = { center: new THREE.Vector3(x, 0, z), dir: new THREE.Vector3(0, 0, 1), len, topY };
+  rails.push(ref);
+  features.push({ mesh: m, kind: 'rail', ref, x, z, topY });
+}
+function placeFeature(f, x, z) {
+  f.x = x; f.z = z;
+  if (f.kind === 'kicker') { f.ref.x = x; f.ref.z = z; f.mesh.position.set(x, roadBase(z) + f.rise/2, z); }
+  else { f.ref.center.set(x, 0, z); f.mesh.position.set(x, roadBase(z) + f.topY, z); }
+}
+function buildSkateSpot() {                          // 초기 도시 생성 (이름 유지 — boot에서 호출)
+  for (let z = -50; z < AHEAD; z += 20) {
+    spawnBuilding(z + Math.random()*6, -1);
+    spawnBuilding(z + Math.random()*6,  1);
+    if (Math.random() < 0.5) spawnBuilding(z, Math.random()<0.5?-1:1);
+  }
+  for (const lane of LANES) {                       // 차선별 교통 (같은 차선 = 같은 방향·속도 → 안 겹침)
+    const dir = lane < 0 ? -1 : 1, spd = dir < 0 ? 19 : 13;
+    for (let z = -40; z < AHEAD; z += 90) spawnCar(lane, z + Math.random()*28, dir, spd);
+  }
+  // 레일/킥커는 가운데 — 크기 다양: 미니 킥커 ~ 대형 램프, 짧은 레일 ~ 초장거리 레일
+  let z = 50;
+  while (z < AHEAD) {
+    if (Math.random() < 0.45) {
+      const k = KICK_VARS[(Math.random()*KICK_VARS.length)|0];
+      addKicker((Math.random()*2-1) * 2, z, k[0], k[1], k[2]);   // w,len,rise
+      z += 14 + Math.random()*30;
+    } else {
+      const r = RAIL_VARS[(Math.random()*RAIL_VARS.length)|0];
+      addRailF((Math.random()<0.5?-1:1) * (2+Math.random()*3), z + r[0]/2, r[0], r[1]);  // len,topY
+      z += r[0] + 18 + Math.random()*24;
+    }
+  }
+}
+const KICK_VARS = [[9,9,2.6], [11,14,4.5], [13,20,7], [14,26,10]];   // [w,len,rise] 미니~대형
+const RAIL_VARS = [[14,1.6], [24,1.2], [40,1.6], [70,1.3], [16,0.7]]; // [len,topY] 짧음~초장거리·낮은렛지
+function recycleCity(dt) {
+  const back = P.pos.z - 80;
+  for (const m of cityBlds) if (m.position.z < back) {
+    m.position.z += SPAN;
+    m.position.x = m.userData.side * (ROAD_HALF + 4 + m.userData.w/2 + Math.random()*45);
+    m.position.y = roadBase(m.position.z) + m.userData.h/2;
+  }
+  for (const m of cityCars) {
+    const u = m.userData; m.position.z += u.spd * u.dir * dt;
+    if (m.position.z < back) m.position.z += SPAN;                       // 차선 유지(x 그대로) → 안 겹침
+    else if (m.position.z > P.pos.z + AHEAD) m.position.z -= SPAN;
+    m.position.y = roadBase(m.position.z);              // 비탈에 맞춰 높이
+    u.rail.center.set(m.position.x, 0, m.position.z);   // 차 지붕 그라인드 위치 갱신
+  }
+  for (const f of features) if (f.z < back) {
+    const fx = f.kind === 'kicker' ? (Math.random()*2-1)*2 : (Math.random()<0.5?-1:1)*(2+Math.random()*3);
+    placeFeature(f, fx, f.z + SPAN);
+  }
+}
+
+// ───────────────────────── PLANET TURBO 지구본 캐릭터 ─────────────────────────
+const outlineMat = new THREE.MeshBasicMaterial({ color: 0x05060a, side: THREE.BackSide });
+function makeGlobeTex() {
+  const w = 512, h = 256, c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
+  x.fillStyle = '#a6d6e4'; x.fillRect(0, 0, w, h);                    // 바다
+  x.fillStyle = '#86c25e';                                           // 대륙
+  const blob = (cx, cy, rx, ry) => { x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, 0, 7); x.fill(); };
+  blob(96, 88, 48, 34); blob(150, 150, 40, 30); blob(400, 98, 52, 46); blob(58, 180, 34, 28); blob(452, 182, 30, 34);
+  x.strokeStyle = '#3f6f8f'; x.lineWidth = 2.5;                      // 위경도 격자
+  for (let i = 0; i <= 12; i++) { const px = i * w / 12; x.beginPath(); x.moveTo(px, 0); x.lineTo(px, h); x.stroke(); }
+  for (let j = 0; j <= 6; j++) { const py = j * h / 6; x.beginPath(); x.moveTo(0, py); x.lineTo(w, py); x.stroke(); }
+  const fx = w * 0.5, fy = h * 0.5; x.lineJoin = 'round'; x.lineCap = 'round';
+  x.strokeStyle = '#111'; x.lineWidth = 6;                           // 눈썹
+  x.beginPath(); x.moveTo(fx-50, fy-30); x.quadraticCurveTo(fx-34, fy-41, fx-15, fy-34); x.stroke();
+  x.beginPath(); x.moveTo(fx+15, fy-34); x.quadraticCurveTo(fx+34, fy-41, fx+50, fy-30); x.stroke();
+  const eye = (ex) => {
+    x.fillStyle = '#fff'; x.strokeStyle = '#111'; x.lineWidth = 5;
+    x.beginPath(); x.ellipse(ex, fy+2, 22, 28, 0, 0, 7); x.fill(); x.stroke();
+    x.fillStyle = '#111'; x.beginPath(); x.arc(ex+3, fy+8, 12, 0, 7); x.fill();
+    x.fillStyle = '#fff'; x.beginPath(); x.arc(ex-2, fy+2, 4, 0, 7); x.fill();
+  };
+  eye(fx-25); eye(fx+25);
+  x.fillStyle = '#5a1418'; x.strokeStyle = '#111'; x.lineWidth = 5;  // 웃는 입
+  x.beginPath(); x.moveTo(fx-40, fy+42); x.quadraticCurveTo(fx, fy+86, fx+40, fy+42); x.closePath(); x.fill(); x.stroke();
+  x.fillStyle = '#fff';
+  x.beginPath(); x.moveTo(fx-34, fy+40); x.lineTo(fx+34, fy+40); x.quadraticCurveTo(fx, fy+54, fx-34, fy+40); x.closePath(); x.fill();
+  x.fillStyle = '#f4889a'; x.beginPath(); x.ellipse(fx+4, fy+68, 17, 10, 0, 0, 7); x.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
+// ───────────────────────── skater ─────────────────────────
+const skater = new THREE.Group();
+{
+  // ── 진짜 스케이트보드 ── (데크 + 그립테이프 + 킥업 노즈/테일 + 트럭 + 바퀴)
+  const deckMat = new THREE.MeshStandardMaterial({ color: 0xff7a36, emissive: 0xff7a36, emissiveIntensity: 0.55, roughness: .6, flatShading: true });  // 밝은 + 자체발광
+  const gripMat = new THREE.MeshStandardMaterial({ color: 0x3a3a40, roughness: 1, flatShading: true });
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.07, 2.2), deckMat); deck.position.y = 0.33; skater.add(deck);
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.025, 2.1), gripMat); grip.position.y = 0.372; skater.add(grip);
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.06, 0.42), deckMat); nose.position.set(0, 0.37, 1.2); nose.rotation.x = -0.55; skater.add(nose);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.06, 0.42), deckMat); tail.position.set(0, 0.37, -1.2); tail.rotation.x = 0.55; skater.add(tail);
+  const truckMat = new THREE.MeshStandardMaterial({ color: 0x9aa0aa, metalness: .6, roughness: .4, flatShading: true });
+  for (const sz of [-0.78, 0.78]) {                      // 트럭(금속 액슬)
+    const tr = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.05, 0.13), truckMat); tr.position.set(0, 0.25, sz); skater.add(tr);
+  }
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0xfff2d0, emissive: 0xfff2d0, emissiveIntensity: 0.35, roughness: .5, flatShading: true });
+  for (const sx of [-0.27, 0.27]) for (const sz of [-0.78, 0.78]) {   // 우레탄 바퀴
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.13, 10), wheelMat);
+    w.rotation.z = Math.PI/2; w.position.set(sx, 0.17, sz); skater.add(w);
+  }
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.45),
+    new THREE.MeshStandardMaterial({ color: 0x4a7adf, roughness: 1, flatShading: true }));
+  body.position.y = 1.0; skater.add(body);
+
+  // 지구본 머리 (PLANET TURBO 마스코트) — 밤에도 얼굴 보이게 자체발광
+  const pg = new THREE.SphereGeometry(1, 40, 28);
+  const gtex = makeGlobeTex();
+  const ball = new THREE.Mesh(pg, new THREE.MeshStandardMaterial({
+    map: gtex, emissive: 0xffffff, emissiveMap: gtex, emissiveIntensity: 0.6, roughness: 0.5, metalness: 0 }));
+  ball.rotation.y = -Math.PI / 2;                       // 얼굴(+X) → +Z (진행 방향, 앞을 봄)
+  const ballO = new THREE.Mesh(pg, outlineMat); ballO.scale.setScalar(1.05); ball.add(ballO);
+  const head = new THREE.Group(); head.add(ball); head.scale.setScalar(0.72); head.position.y = 2.1;
+  skater.add(head);
+
+  // 누들 팔 + 흰 장갑 주먹
+  const armMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, flatShading: true, roughness: 0.7 });
+  const fistGeo = new THREE.SphereGeometry(0.17, 12, 10);
+  const makeArm = (sx, rz) => {
+    const pivot = new THREE.Group();
+    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.4, 4, 8), armMat); fore.position.y = 0.25; pivot.add(fore);
+    const fist = new THREE.Mesh(fistGeo, new THREE.MeshStandardMaterial({ color: 0xfff1e8, flatShading: true, roughness: 0.6 }));
+    const fo = new THREE.Mesh(fistGeo, outlineMat); fo.scale.setScalar(1.12); fist.add(fo);
+    fist.position.y = 0.5; pivot.add(fist);
+    pivot.position.set(sx, 1.25, 0); pivot.rotation.z = rz; skater.add(pivot);
+  };
+  makeArm(0.42, -0.7); makeArm(-0.42, 0.7);             // 양팔 벌림 (만세 느낌)
+}
+scene.add(skater);
+
+const P = {
+  pos: new THREE.Vector3(0, 0, 0),
+  vel: 0,                 // 전진 속도 (m/s, 음수 가능)
+  yaw: 0,                 // 진행 방향
+  vy: 0,                  // 수직 속도
+  y: 0,                   // 높이
+  grounded: true,
+  grinding: null,         // 현재 그라인드 레일
+  grindT: 0,              // 레일 상 위치
+  grindCD: 0,             // 재흡착 방지 쿨다운
+  spin: 0,                // 시각 회전(트릭 애니)
+  spinV: 0,
+  flip: 0, flipV: 0,
+};
+const GRAV = 26, JUMP = 11, ACCEL = 11, MAXSPD = 22, FRICTION = 4, TURN = 2.4;
+
+// ───────────────────────── trick / combo system ─────────────────────────
+const combo = { tricks: [], pts: 0, mult: 0, active: false };
+const TRICKS = {
+  KeyA: ['360 SPIN', 100], KeyD: ['KICKFLIP', 150],
+  KeyW: ['INDY GRAB', 120], KeyS: ['NOSEGRAB', 130],
+};
+let score = 0, hi = Math.round(+(localStorage.getItem('ss_hi') || 0));
+const $ = s => document.querySelector(s);
+$('#score .hi').textContent = 'HI ' + hi.toLocaleString();
+
+function startCombo() { if (!combo.active) { combo.active = true; combo.tricks = []; combo.pts = 0; combo.mult = 0; } }
+function doAirTrick(code) {
+  const t = TRICKS[code]; if (!t) return;
+  startCombo();
+  combo.tricks.push(t[0]); combo.pts += t[1]; combo.mult++;
+  // 시각 회전
+  if (code === 'KeyA') P.spinV = 9; else if (code === 'KeyD') P.flipV = 11;
+  else P.flipV = 5;
+  showCombo();
+}
+let _lastMult = 0;
+function showCombo() {
+  const el = $('#combo');
+  if (!combo.active || !combo.tricks.length) { el.classList.remove('show'); _lastMult = 0; return; }
+  $('#combolist').textContent = combo.tricks.slice(-4).join(' + ');
+  const m = $('#combomult');
+  m.textContent = '×' + combo.mult;
+  m.style.color = combo.mult >= 12 ? '#ff2e2e' : combo.mult >= 6 ? '#ffae20' : '#fff';   // 흰→주황→빨강
+  $('#combopts').textContent = Math.round(combo.pts).toLocaleString() + ' PTS';
+  if (combo.mult !== _lastMult) { el.classList.remove('show'); void el.offsetWidth; }     // 콤보 늘면 팝 리트리거
+  el.classList.add('show');
+  _lastMult = combo.mult;
+}
+function banner(text, cls) {
+  const b = $('#banner'); b.textContent = text; b.className = cls;
+  b.style.opacity = 1; b.style.transition = 'none';
+  requestAnimationFrame(() => { b.style.transition = 'opacity .9s, transform .9s';
+    b.style.opacity = 0; });
+}
+function bankCombo() {
+  if (!combo.active) return;
+  if (combo.pts > 0) {
+    const gain = Math.round(combo.pts * Math.max(1, combo.mult));
+    score += gain;
+    banner('BANK +' + gain.toLocaleString(), 'bank');
+    if (score > hi) { hi = score; localStorage.setItem('ss_hi', hi); }
+    updateScore();
+  }
+  combo.active = false; combo.tricks = []; combo.pts = 0; combo.mult = 0;
+  $('#combo').classList.remove('show');
+}
+function bail() {
+  if (combo.active && combo.pts > 0) banner('BAIL!', 'bail');
+  combo.active = false; combo.tricks = []; combo.pts = 0; combo.mult = 0;
+  $('#combo').classList.remove('show');
+  P.vel *= 0.35; P.controlLock = 0.5;    // 수동 bail 페널티 (오토는 bail 없음)
+}
+// 레일에 몸으로 부딪힘 (그라인드 못 하고 관통하려 할 때) → 충돌
+function hitRail(r) {
+  combo.active = false; combo.tricks = []; combo.pts = 0; combo.mult = 0;
+  $('#combo').classList.remove('show');
+  P.pos.x -= Math.sin(P.yaw) * 1.4; P.pos.z -= Math.cos(P.yaw) * 1.4;   // 튕겨 나옴
+  P.vel *= 0.3; P.controlLock = 0.3;
+  P.lockedRail = r; P.railLockout = 0.7;
+  banner('CRASH!', 'bail');
+}
+function updateScore() {
+  $('#score .big').textContent = score.toLocaleString();
+  $('#score .hi').textContent = 'HI ' + hi.toLocaleString();
+}
+
+// ───────────────────────── input ─────────────────────────
+const keys = {};
+let started = false;
+addEventListener('keydown', e => {
+  if (!started) return;
+  keys[e.code] = true;
+  if (e.code === 'Space') { e.preventDefault();
+    if (P.grinding) { ollieOut(); }
+    else if (P.grounded) { P.vy = JUMP; P.grounded = false; }
+  }
+  if (e.code === 'KeyE' && !e.repeat) {           // 오토파일럿 토글
+    autopilot = !autopilot;
+    if (autopilot) { apTrick = 0; apGrindT = 0; }
+    else { aiThrottle = 0; aiSteer = 0; }
+    document.querySelector('#ap').classList.toggle('on', autopilot);
+  }
+  if (e.repeat) return;
+  if (!P.grounded && !P.grinding && e.code in TRICKS) doAirTrick(e.code);
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+
+function ollieOut() {
+  if (P.grinding) { P.lockedRail = P.grinding; P.railLockout = 1.2; }
+  P.grinding = null; P.grounded = false; P.vy = JUMP * 0.85; P.grindCD = 0.3;
+  P.vel = Math.max(P.vel, 16);                          // 탈출 부스트 (느린 차 앞지르기)
+}
+
+// ───────────────────────── grind detection ─────────────────────────
+const _v = new THREE.Vector3();
+function tryGrind() {
+  // 공중에서, 가라앉는 중에, 도로면보다 충분히 높을 때만 (재흡착 쿨다운 중엔 금지)
+  if (P.grounded || P.grindCD > 0 || P.vy > 1 || P.y < roadBase(P.pos.z) + 0.4) return false;
+  for (const r of rails) {
+    if (r === P.lockedRail && P.railLockout > 0) continue;    // 방금 탄 레일/차는 잠깐 스킵
+    const rt = roadBase(r.center.z) + r.topY;                 // 레일 윗면 실제 높이(비탈 반영)
+    if (P.y < rt - 1.0 || P.y > rt + 1.6) continue;          // 위에서 내려와 닿을 때만 (범위 넓힘)
+    _v.set(P.pos.x - r.center.x, 0, P.pos.z - r.center.z);
+    const t = THREE.MathUtils.clamp(_v.dot(r.dir), -r.len/2, r.len/2);
+    const px = r.center.x + r.dir.x * t, pz = r.center.z + r.dir.z * t;
+    const d = Math.hypot(P.pos.x - px, P.pos.z - pz);
+    if (d < 2.6) {
+      P.grinding = r; P.grindT = t; P.y = rt; P.vy = 0;
+      P.pos.x = px; P.pos.z = pz;
+      // 진행 방향을 레일에 맞춤 + 공중 회전 초기화(90° 붙음 방지) → 레일 따라 똑바로
+      const align = Math.sign((Math.sin(P.yaw) * r.dir.x + Math.cos(P.yaw) * r.dir.z)) || 1;
+      P.grindDir = align;
+      P.yaw = Math.atan2(r.dir.x * align, r.dir.z * align);
+      P.spin = 0; P.flip = 0; P.spinV = 0; P.flipV = 0;
+      startCombo();
+      combo.tricks.push('GRIND'); combo.mult++;
+      showCombo();
+      return true;
+    }
+  }
+  return false;
+}
+
+// ───────────────────────── autopilot (E 토글 — 끊김 없는 글라이딩 VJ) ─────────────────────────
+let autopilot = false, aiThrottle = 0, aiSteer = 0;
+let apTrick = 0, apGrindT = 0, apComboN = 0;
+function aiDrive(dt) {
+  // 레일 우선: 앞쪽 레일의 '시작점'을 조준 (긴 레일도 처음부터 탐)
+  let g = null, gdz = 1e9;
+  for (const f of features) if (f.kind === 'rail') {
+    const dz = (f.z - f.ref.len/2) - P.pos.z;        // 레일 시작점까지 거리
+    if (dz > 2 && dz < gdz) { gdz = dz; g = f.x; }
+  }
+  if (!(g !== null && gdz < 45)) {                   // 45m 안에 레일 없을 때만 자동차 조준
+    g = null; gdz = 1e9;
+    for (const m of cityCars) { const dz = m.position.z - P.pos.z; if (dz > 2 && dz < gdz) { gdz = dz; g = m.position.x; } }
+  }
+  // 킥커
+  let k = null, kdz = 1e9;
+  for (const f of features) if (f.kind === 'kicker') { const dz = f.z - P.pos.z; if (dz > 2 && dz < kdz) { kdz = dz; k = f.x; } }
+  const tx = (g !== null && gdz < 32) ? g : (k !== null && kdz < 44 ? k : 0);
+  const diff = angNorm(Math.atan2(tx - P.pos.x, 26) - P.yaw);
+  aiSteer = THREE.MathUtils.clamp(diff * 2.5, -1, 1);
+  aiThrottle = 1;                                    // 항상 전진 = 끊김 없는 글라이딩
+  // 정렬됐으면 올리해서 올라타기 — 고속이라 시작점 ~12m 전 점프
+  if (P.grounded && g !== null && gdz > 8 && gdz < 16 && Math.abs(g - P.pos.x) < 3) { P.vy = JUMP; P.grounded = false; }
+  // 공중: 서로 다른 트릭 연사로 큰 콤보 (착지 임박하면 멈춰 깔끔히)
+  if (!P.grounded && !P.grinding) {
+    apTrick -= dt;
+    const aimingGrind = g !== null && gdz < 13;       // 곧 레일/차에 착지 → 트릭 자제
+    if (!aimingGrind && (P.y - roadBase(P.pos.z)) > 1.5 && P.vy > -8 && apTrick <= 0) {
+      doAirTrick(['KeyD', 'KeyA', 'KeyW', 'KeyS'][apComboN % 4]); apComboN++;
+      apTrick = 0.15;
+    }
+  }
+  // 그라인드는 끝까지 즐김 (긴 라인) — 너무 오래(4s+)면 안전 탈출
+  if (P.grinding) { apGrindT += dt; if (apGrindT > 4) { ollieOut(); apGrindT = 0; } }
+  else apGrindT = 0;
+}
+
+// 각도를 [-π, π]로 — 가장 가까운 한 바퀴로부터의 잔차(똑바로 섰는지 판정용)
+function angNorm(a) { return ((a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; }
+
+// ───────────────────────── update ─────────────────────────
+let T = 0;
+function update(dt) {
+  T += dt;
+  if (autopilot) aiDrive(dt);
+  P.controlLock = Math.max(0, (P.controlLock || 0) - dt);
+  P.grindCD = Math.max(0, P.grindCD - dt);
+  P.railLockout = Math.max(0, (P.railLockout || 0) - dt);   // 방금 탄 레일 재흡착 잠금
+  const locked = P.controlLock > 0;
+
+  if (P.grinding) {
+    // 레일 위 이동
+    const r = P.grinding;
+    const spd = Math.max(8, Math.abs(P.vel));
+    P.grindT += spd * P.grindDir * dt;
+    combo.pts += 50 * dt; combo.mult = Math.max(combo.mult, 1);
+    P.pos.x = r.center.x + r.dir.x * P.grindT;
+    P.pos.z = r.center.z + r.dir.z * P.grindT;
+    P.y = roadBase(P.pos.z) + r.topY;        // 비탈 반영
+    P.vel = spd;
+    // 진행 방향 끝에 도달하면 종료 (시작점에 타도 반대 끝까지 쭉 — 즉시 내림 방지)
+    if ((P.grindDir > 0 && P.grindT >= r.len/2) || (P.grindDir < 0 && P.grindT <= -r.len/2)) {
+      P.lockedRail = r; P.railLockout = 1.2;
+      P.grinding = null; P.grounded = false; P.vy = 4; P.grindCD = 0.35;
+      P.vel = Math.max(P.vel, 16);          // 탈출 부스트
+    }
+    if ((T * 8 | 0) % 2 === 0) showCombo();
+  } else if (!P.grounded) {
+    // 공중
+    P.vy -= GRAV * dt;
+    P.y += P.vy * dt;
+    moveXZ(Math.sin(P.yaw) * P.vel * dt, Math.cos(P.yaw) * P.vel * dt);
+    P.spin += P.spinV * dt;
+    P.flip += P.flipV * dt;
+    const gnd = groundHeightAt(P.pos.x, P.pos.z);
+    // 착지 임박 → 회전을 가장 가까운 '완성된 한 바퀴'로 맞춰 똑바로 착지 (보기 좋게)
+    // 비탈에선 전진할수록 지면이 내려가므로 그만큼 닿기까지 시간을 보정
+    const h0 = P.y - roadBase(P.pos.z);
+    const A = P.vy + SLOPE * P.vel;
+    const tg = (A + Math.sqrt(Math.max(0, A * A + 2 * GRAV * Math.max(0, h0)))) / GRAV;
+    if (tg < 0.3) {
+      // 돌던 방향 그대로(역회전 금지) 다음 '한 바퀴'까지 돌려 똑바로 착지
+      const TAU = Math.PI * 2;
+      const ft = (P.flipV >= 0 ? Math.ceil(P.flip / TAU - 1e-4) : Math.floor(P.flip / TAU + 1e-4)) * TAU;
+      const st = (P.spinV >= 0 ? Math.ceil(P.spin / TAU - 1e-4) : Math.floor(P.spin / TAU + 1e-4)) * TAU;
+      P.flipV = (ft - P.flip) / Math.max(tg, 0.05);   // 같은 방향으로 속도만 조절해 착지에 맞춤
+      P.spinV = (st - P.spin) / Math.max(tg, 0.05);
+    } else { P.spinV *= 0.99; P.flipV *= 0.99; }
+    if (P.y <= gnd) {                        // 지형(땅/램프) 착지
+      P.y = gnd; P.vy = 0; P.grounded = true;
+      if (!tryGrind()) {
+        const stable = Math.abs(angNorm(P.flip)) < 0.5 && Math.abs(P.flipV) < 4;  // 똑바로 섰나?
+        if (!autopilot && combo.active && combo.pts > 0 && !stable) bail();  // 오토는 개고수 — 무조건 클린 착지
+        else bankCombo();
+      }
+      P.spin = 0; P.flip = 0; P.spinV = 0; P.flipV = 0;           // 스탠스 정렬
+    } else {
+      tryGrind();
+    }
+  } else {
+    // 지상
+    if (!locked) {
+      const accel = autopilot ? aiThrottle > 0 : keys.KeyW;
+      if (accel && P.vel < MAXSPD) P.vel += (autopilot ? ACCEL * 2.6 : ACCEL) * dt;  // 오토는 언덕도 파워로 밀어붙임
+      if (!autopilot && keys.KeyS) P.vel -= ACCEL * 1.3 * dt;
+      const steer = autopilot ? aiSteer : (keys.KeyA ? 1 : 0) - (keys.KeyD ? 1 : 0);
+      const auth = autopilot ? 1 : Math.min(1, Math.abs(P.vel) / 6 + 0.15);  // 오토는 저속에서도 잘 꺾임
+      P.yaw += steer * TURN * dt * auth;
+      P.yaw = THREE.MathUtils.clamp(P.yaw, -0.7, 0.7);   // 항상 앞으로 (도로 안 좌우만)
+    }
+    // 경사 모멘텀 — 내리막 가속 / 오르막 감속 (다운힐 속도감)
+    const ghHere = groundHeightAt(P.pos.x, P.pos.z);
+    const ghAhead = groundHeightAt(P.pos.x + Math.sin(P.yaw) * 3, P.pos.z + Math.cos(P.yaw) * 3);
+    P.vel += -((ghAhead - ghHere) / 3) * 34 * dt;
+    P.vel -= Math.sign(P.vel) * FRICTION * dt;
+    if (Math.abs(P.vel) < 0.05) P.vel = 0;
+    P.vel = THREE.MathUtils.clamp(P.vel, -MAXSPD * 0.4, MAXSPD * 1.7);   // 내리막은 최고속 초과 허용
+    moveXZ(Math.sin(P.yaw) * P.vel * dt, Math.cos(P.yaw) * P.vel * dt);
+    const base = roadBase(P.pos.z);
+    const bump = rampBump(P.pos.x, P.pos.z);
+    if (bump >= 0.05) {
+      P.y = base + bump;                     // 램프 돌출 위 → 타고 오름
+    } else if (P.y > base + 0.4 && P.vel > 6) {
+      P.grounded = false;                    // 램프 끝 → 공중 발사
+      P.vy = Math.min(20, (P.y - base) * 1.5 + P.vel * 0.4);
+    } else {
+      P.y = base;                            // 내리막 도로면 따라감
+    }
+  }
+
+  // 도로 좌우 경계 — 도로 안에서만 (앞뒤 z는 무한)
+  if (P.pos.x < -(ROAD_HALF - 1)) { P.pos.x = -(ROAD_HALF - 1); }
+  else if (P.pos.x > ROAD_HALF - 1) { P.pos.x = ROAD_HALF - 1; }
+
+  // 레일 몸통 충돌 — 그라인드 못 하고 바에 부딪히면 관통 대신 충돌 (올리로 윗면 넘으면 통과)
+  if (!P.grinding) {
+    for (const r of rails) {
+      if (r === P.lockedRail && P.railLockout > 0) continue;
+      const rt = roadBase(r.center.z) + r.topY;
+      if (P.y > rt - 0.3 || P.y < rt - 2.4) continue;   // 윗면 위로 넘었거나 한참 아래면 통과
+      _v.set(P.pos.x - r.center.x, 0, P.pos.z - r.center.z);
+      const t = THREE.MathUtils.clamp(_v.dot(r.dir), -r.len/2, r.len/2);
+      const px = r.center.x + r.dir.x * t, pz = r.center.z + r.dir.z * t;
+      if (Math.hypot(P.pos.x - px, P.pos.z - pz) < 0.7) { hitRail(r); break; }
+    }
+  }
+
+  // place model — 그라인드 중엔 보드를 레일에 90° 가로지름(보드슬라이드) + 살짝 균형 흔들림
+  const targetRoll = P.grinding ? Math.sin(T * 5) * 0.13 : 0;
+  P.roll = (P.roll || 0) + (targetRoll - (P.roll || 0)) * Math.min(1, dt * 8);
+  const gYaw = P.grinding ? Math.PI / 2 : 0;     // 보드 90° (진행/카메라는 P.yaw 그대로)
+  skater.position.set(P.pos.x, P.y, P.pos.z);
+  skater.rotation.set(P.flip, P.yaw + P.spin + gYaw, P.roll);
+
+  // chase camera
+  const camDist = 9, camH = 4.5;
+  const tx = P.pos.x - Math.sin(P.yaw) * camDist;
+  const tz = P.pos.z - Math.cos(P.yaw) * camDist;
+  camera.position.x += (tx - camera.position.x) * Math.min(1, dt * 6);
+  camera.position.z += (tz - camera.position.z) * Math.min(1, dt * 6);
+  camera.position.y += (P.y + camH - camera.position.y) * Math.min(1, dt * 6);
+  camera.lookAt(P.pos.x, P.y + 1.4, P.pos.z);
+
+  // HUD speed
+  $('#speed').textContent = 'SPD ' + Math.round(Math.abs(P.vel) * 3.6);
+}
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (started) { update(dt); recycleCity(dt); }
+  // 바닥/도로를 비탈에 맞춰 스케이터 따라 이동 (끝없는 내리막)
+  const by = roadBase(P.pos.z);
+  ground.position.set(0, by, P.pos.z);
+  road.position.set(0, by + 0.01, P.pos.z);
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+// ───────────────────────── boot ─────────────────────────
+buildSkateSpot();                                    // 끝없는 야간 도시 생성
+$('#load').textContent = 'NIGHT CITY READY';
+setTimeout(() => { $('#load').classList.add('hidden'); $('#start').classList.remove('hidden'); }, 400);
+
+$('#start').addEventListener('click', () => {
+  $('#start').classList.add('hidden');
+  started = true; last = performance.now();
+});
+
+camera.position.set(0, 5, -10);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
